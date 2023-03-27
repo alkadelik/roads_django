@@ -1,0 +1,1 @@
+Do not forget to activate Django virtual env for development
