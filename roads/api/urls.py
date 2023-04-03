@@ -5,5 +5,5 @@ urlpatterns = [
     path('list/', views.roads_list),
     path('roads/<int:pk>', views.roads_detail),
     path('road_status/', views.road_status),
-    path('multi_segments/', views.multi_segments_upload),
+    path('bulk_segments/', views.bulk_segments_upload),
 ]
