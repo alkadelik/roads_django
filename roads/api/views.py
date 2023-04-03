@@ -159,37 +159,32 @@ def road_status(request):
 @api_view(['GET', 'POST'])
 def bulk_segments_upload(request):
     if request.method == 'POST':
-        # try:
-        #     for obj in request.data: # figure how to bulk_create() this
-        #         Route.objects.get_or_create(
-        #             segment=obj.get("ROUTE"),
-        #         )
+        routes = []
+        for obj in request.data:
+            routes.append(Route(route=obj.get("ROUTE")))
+
+        Route.objects.bulk_create(routes, ignore_conflicts=True)
+
+        # 1. Save segments
+        addresses = []
+        for obj in request.data:
+            batch = {
+                'route': obj.get("ROUTE"),
+                'segment': obj.get("SEGMENT_CO"),
+                'start_lat': json.dumps(obj.get("NORTHINGS")),
+                'start_lng': json.dumps(obj.get("EASTINGS")),
+                'end_lat': json.dumps(obj.get("NORTHINGS2")),
+                'end_lng': json.dumps(obj.get("EASTINGS2"))
+            }
+            addresses.append(batch)
+        
         # except:
-        #     return Response({'error': 'Could not create routes'}, status=HTTP_200_OK)
-
-        try:
-            # 1. Save segments
-            # default_address = Addresses.objects.get(pk=14)
-            addresses = []
-            for obj in request.data: # figure how to bulk_create() this
-                batch = {
-                    'segment': obj.get("SEGMENT_CO"),
-                    'start_lat': json.dumps(obj.get("NORTHINGS")),
-                    'start_lng': json.dumps(obj.get("EASTINGS")),
-                    'end_lat': json.dumps(obj.get("NORTHINGS2")),
-                    'end_lng': json.dumps(obj.get("EASTINGS2"))
-                }
-                addresses.append(batch)
-
-        except:
-            print("excepting")
-            return Response({'error': 'Could not create addresses'}, status=HTTP_200_OK)
-
+        #     return Response({'error': 'Could not create addresses'}, status=HTTP_200_OK)
 
     google_addresses = []
     segments = []
     for point in addresses:
-        try:
+        # try:
             # 2. Fetch segment parameters from Google
             key = config('GOOGLE_ROUTES_API_KEY')
             url = 'https://maps.googleapis.com/maps/api/distancematrix/json?origins=' + point['start_lat'] + '%2C' + point['start_lng'] + '&destinations=' + point['end_lat'] + '%2C' + point['end_lng'] + '&key=' + key
@@ -207,7 +202,7 @@ def bulk_segments_upload(request):
             )
             google_addresses.append(start_point)
 
-            end_point = Addresses( # might not need to add this since the end point of one, is the starting point of another
+            end_point = Addresses(
                 address = response['destination_addresses'][0],
                 lat = point['end_lat'],
                 lng = point['end_lng']
@@ -216,8 +211,19 @@ def bulk_segments_upload(request):
 
             # 4. Create segments with distance, speed, and time of travel
             distance = response['rows'][0]['elements'][0]['distance']['text'][:-2]
-            duration = response['rows'][0]['elements'][0]['duration']['text'][:-4]
-            duration2 = round((float(duration) / 60), 2) # converted from mins to hrs - used for calculating speed
+            try:
+                duration = response['rows'][0]['elements'][0]['duration']['text'][:-4]
+                duration2 = round((float(duration) / 60), 2) # converted from mins to hrs - used for calculating speed
+            except Exception as e: # ValueError: could not convert string to float:
+                duration = response['rows'][0]['elements'][0]['duration']['text']
+                split = duration.split()
+                
+                if len(split) < 3: # exactly single digit hour with no minutes e.g. 2 hours
+                    duration = int(split[0]) * 60
+                else: # hour and minutes e.g. 2 hours 5 mins
+                    duration = (int(split[0]) * 60) + int(split[2])
+         
+            duration2 = round((float(duration) / 60), 2)
             speed = round((float(distance) / duration2), 0)
 
             if speed < 50: # ~30mph
@@ -233,23 +239,34 @@ def bulk_segments_upload(request):
             elif speed < 125: # ~80mph
                 status = 5 #'Excellent'
 
-            segments.append(Segment(
-                segment = point['segment'],
-                road_name = '',
-                start_point = Addresses.objects.filter(lat=point['start_lat'], lng=point['start_lng'])[:1].get(),
-                end_point = Addresses.objects.filter(lat=point['end_lat'], lng=point['end_lng']).first(),
-                distance = distance,
-                travel_time = duration,
-                avg_speed = speed,
-                status = status
-            ))
+            segments.append({
+                'segment': point['segment'],
+                'distance': distance,
+                'travel_time': duration,
+                'avg_speed': speed,
+                'status': status,
+            })
 
-        except:
-            print("excepting 2")
-            return Response({'error': 'Could not fetch details from google'}, status=HTTP_200_OK)
+        # except:
+            # return Response({'error': 'Could not fetch details from google'}, status=HTTP_200_OK)
 
     Addresses.objects.bulk_create(google_addresses, ignore_conflicts=True)
-    Segment.objects.bulk_create(segments, ignore_conflicts=True)
 
-    # return Response({'data': response}, status=HTTP_200_OK)
+    i = 0
+    segments_to_save = []
+    for segment in segments:
+        segments_to_save.append(Segment(
+            segment = segment['segment'],
+            road_name = '',
+            distance = segment['distance'],
+            travel_time = segment['travel_time'],
+            avg_speed = segment['avg_speed'],
+            status = segment['status'],
+            start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
+            end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
+            # route = Route.objects.get(route=addresses[i]['route'])
+        ))
+        i+=1
+
+    Segment.objects.bulk_create(segments_to_save, ignore_conflicts=True)
     return Response({'response': batch}, status=HTTP_200_OK)
