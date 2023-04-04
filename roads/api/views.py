@@ -226,18 +226,19 @@ def bulk_segments_upload(request):
             duration2 = round((float(duration) / 60), 2)
             speed = round((float(distance) / duration2), 0)
 
-            if speed < 50: # ~30mph
-                status = 1 #'bad' 
+
+            if speed < 50: # ~40mph
+                status = 'FF0000' # bad
             elif speed < 65: # ~40mph
-                status = 2 #'poor'
+                status = 'FF4081' # bad
             elif speed < 80: # ~50mph
-                status = 3 #'ok'
+                status = 'FF8000' #'poor'
             elif speed < 95: # ~60mph
-                status = 4 #'good'
+                status = 'FFFF00' #'ok'
             elif speed < 110: # ~70mph
-                status = 5 #'very good'
-            elif speed < 125: # ~80mph
-                status = 5 #'Excellent'
+                status = '80FF00' #'good'
+            else: # ~80mph
+                status = '0A5D00' #'Excellent'
 
             segments.append({
                 'segment': point['segment'],

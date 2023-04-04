@@ -16,7 +16,7 @@ class Addresses(models.Model):
         return self.address
 
 class Segment(models.Model):
-    route = models.ManyToManyField(Route, blank=True)
+    route = models.ManyToManyField(Route, db_column='route', blank=True)
     road_name = models.CharField(max_length=30, blank=True)
     segment = models.CharField(max_length=10, unique=True)
     start_point = models.ForeignKey(Addresses, to_field='address', related_name='start_point', on_delete=models.SET_DEFAULT, default=14) # default=14 is a "None" address with 0.0 lat/lng
@@ -25,7 +25,7 @@ class Segment(models.Model):
     travel_time = models.IntegerField(default=0)
     avg_speed = models.DecimalField(max_digits=4, decimal_places=1, default=0.0)
     # direction
-    status = models.IntegerField(default=0)
+    status = models.CharField(max_length=6, default='F0F0F0')
 
     def __str__(self):
         return self.segment
