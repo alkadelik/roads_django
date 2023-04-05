@@ -20,6 +20,7 @@ class Segment(models.Model):
     road_name = models.CharField(max_length=30, blank=True)
     segment = models.CharField(max_length=10, unique=True)
     start_point = models.ForeignKey(Addresses, to_field='address', related_name='start_point', on_delete=models.SET_DEFAULT, default=14) # default=14 is a "None" address with 0.0 lat/lng
+    map = models.ImageField(upload_to='images', blank=True)
     end_point = models.ForeignKey(Addresses, to_field='address', related_name='end_point', on_delete=models.SET_DEFAULT, default=14)
     distance = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     travel_time = models.IntegerField(default=0)

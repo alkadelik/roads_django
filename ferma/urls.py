@@ -15,9 +15,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from django.conf import settings # For serving media files
+from django.conf.urls.static import static # For serving media files
 
 urlpatterns = [
     path('roads/', include('roads.urls')),
     path('admin/', admin.site.urls),
     path('roads/api/', include('roads.api.urls')),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
