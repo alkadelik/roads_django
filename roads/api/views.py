@@ -23,9 +23,17 @@ from roads.api.serializers import SegmentSerializer, AddressesSerializer, RouteS
 @api_view(['GET', 'POST'])
 def roads_list(request):
     if request.method == 'GET':
-        roads = Segment.objects.all().order_by('route')
-        serializer = SegmentSerializer(roads, many=True)
-        return Response(serializer.data)
+        segments = Segment.objects.all().order_by('route')
+        segments_serializer = SegmentSerializer(segments, many=True)
+
+        addresses = Addresses.objects.all()
+        addresses_serializer = AddressesSerializer(addresses, many=True)
+
+        context = {
+            'segments': segments_serializer.data,
+            'addresses': addresses_serializer.data
+        }
+        return Response(context)
 
     elif request.method == 'POST':
         serializer = SegmentSerializer(data=request.data)
@@ -33,6 +41,13 @@ def roads_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'POST'])
+def routes_list(request):
+    if request.method == 'GET':
+        routes = Route.objects.all().order_by('pk')
+        serializer = RouteSerializer(routes, many=True)
+        return Response(serializer.data)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def roads_detail(request, pk):
@@ -188,6 +203,12 @@ def bulk_segments_upload(request):
             # 2. Fetch segment parameters from Google
             key = config('GOOGLE_ROUTES_API_KEY')
             url = 'https://maps.googleapis.com/maps/api/distancematrix/json?origins=' + point['start_lat'] + '%2C' + point['start_lng'] + '&destinations=' + point['end_lat'] + '%2C' + point['end_lng'] + '&key=' + key
+
+            # for multiple destintions (or possibly waypoints)
+            # url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins=6.45935%2C3.39926&destinations=6.65081%2C3.39157%7C6.83191%2C3.45898%7C6.96165%2C3.65673%7C6.45935%2C3.39926&key=AIzaSyD-mKszUKKRlSBlc8u9Tb8zj7UslWpDxB4"
+            # - multiple destinations (waypoints)
+            # - departure time: "https://maps.googleapis.com/maps/api/distancematrix/json?origins=Boston%2CMA%7CCharlestown%2CMA&destinations=Lexington%2CMA%7CConcord%2CMA&departure_time=now&key=YOUR_API_KEY"
+
 
             payload={}
             header = {}  
