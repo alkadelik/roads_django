@@ -17,8 +17,9 @@ class Addresses(models.Model):
 
 class Segment(models.Model):
     route = models.ManyToManyField(Route, db_column='route', blank=True)
-    road_name = models.CharField(max_length=30, blank=True)
-    segment = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=30, blank=True)
+    state = models.CharField(max_length=30, blank=True)
+    code = models.CharField(max_length=10, unique=True)
     start_point = models.ForeignKey(Addresses, to_field='address', related_name='start_point', on_delete=models.SET_DEFAULT, default=14) # default=14 is a "None" address with 0.0 lat/lng
     map = models.ImageField(upload_to='images', blank=True)
     end_point = models.ForeignKey(Addresses, to_field='address', related_name='end_point', on_delete=models.SET_DEFAULT, default=14)
