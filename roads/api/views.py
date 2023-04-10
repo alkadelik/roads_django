@@ -29,14 +29,14 @@ def roads_list(request):
         addresses = Addresses.objects.all()
         addresses_serializer = AddressesSerializer(addresses, many=True)
 
-        try:
-            for segment in segments_serializer:
-                segment['start_point'] = addresses.filter(pk=segment['start_point']).values()[0]['name']
-                segment['end_point'] = addresses.filter(pk=segment['end_point']).values()[0]['name']
-                segment['route'] = Route.objects.filter(pk=segment['route'][0]).values()[0]['route']
-        except:
-            print('error occurreds getting route or start_point')
-            pass
+        # try:
+        for segment in segments_serializer.data:
+            segment['start_point'] = addresses.filter(pk=segment['start_point']).values()[0]['name']
+            segment['end_point'] = addresses.filter(pk=segment['end_point']).values()[0]['name']
+            segment['route'] = Route.objects.filter(pk=segment['route'][0]).values()[0]['route']
+        # except:
+        #     print('error occurreds getting route or start_point')
+        #     pass
 
         context = {
             'segments': segments_serializer.data,
