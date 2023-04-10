@@ -29,14 +29,14 @@ def roads_list(request):
         addresses = Addresses.objects.all()
         addresses_serializer = AddressesSerializer(addresses, many=True)
 
-        # try:
-        for segment in segments_serializer.data:
-            segment['start_point'] = addresses.filter(pk=segment['start_point']).values()[0]['name']
-            segment['end_point'] = addresses.filter(pk=segment['end_point']).values()[0]['name']
-            segment['route'] = Route.objects.filter(pk=segment['route'][0]).values()[0]['route']
-        # except:
-        #     print('error occurreds getting route or start_point')
-        #     pass
+        try:
+            for segment in segments_serializer.data:
+                segment['start_point'] = addresses.filter(pk=segment['start_point']).values()[0]['name']
+                segment['end_point'] = addresses.filter(pk=segment['end_point']).values()[0]['name']
+                segment['route'] = Route.objects.filter(pk=segment['route']).values()[0]['route']
+        except:
+            print('error occurreds getting route or start_point')
+            pass
 
         context = {
             'segments': segments_serializer.data,
@@ -294,6 +294,7 @@ def bulk_segments_upload(request):
     i = 0
     segments_to_save = []
     for segment in segments:
+        print(addresses[i]['route'])
         segments_to_save.append(Segment(
             code = segment['code'],
             name = segment['name'],
@@ -304,7 +305,7 @@ def bulk_segments_upload(request):
             status = segment['status'],
             start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
             end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
-            # route = Route.objects.get(route=addresses[i]['route'])
+            route = Route.objects.get(route=addresses[i]['route'])
         ))
         i+=1
     Segment.objects.bulk_create(segments_to_save, ignore_conflicts=True)

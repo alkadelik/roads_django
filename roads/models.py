@@ -17,13 +17,13 @@ class Addresses(models.Model):
         return self.name
 
 class Segment(models.Model):
-    route = models.ManyToManyField(Route, db_column='route', blank=True)
+    route = models.ForeignKey(Route, db_column='route', on_delete=models.PROTECT, default=958)
     name = models.CharField(max_length=30, blank=True)
     state = models.CharField(max_length=30, blank=True)
     code = models.CharField(max_length=10, unique=True)
-    start_point = models.ForeignKey(Addresses, related_name='start_point', on_delete=models.SET_DEFAULT, default=14) # default=14 is a "None" address with 0.0 lat/lng
+    start_point = models.ForeignKey(Addresses, related_name='start_point', on_delete=models.PROTECT, default=1330) # id 1330 is No address
     map = models.ImageField(upload_to='images', blank=True)
-    end_point = models.ForeignKey(Addresses, related_name='end_point', on_delete=models.SET_DEFAULT, default=14)
+    end_point = models.ForeignKey(Addresses, related_name='end_point', on_delete=models.PROTECT, default=1330)
     distance = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     travel_time = models.IntegerField(default=0)
     avg_speed = models.DecimalField(max_digits=4, decimal_places=1, default=0.0)
