@@ -29,6 +29,15 @@ def roads_list(request):
         addresses = Addresses.objects.all()
         addresses_serializer = AddressesSerializer(addresses, many=True)
 
+        try:
+            for segment in segments_serializer:
+                segment['start_point'] = addresses.filter(pk=segment['start_point']).values()[0]['name']
+                segment['end_point'] = addresses.filter(pk=segment['end_point']).values()[0]['name']
+                segment['route'] = Route.objects.filter(pk=segment['route'][0]).values()[0]['route']
+        except:
+            print('error occurreds getting route or start_point')
+            pass
+
         context = {
             'segments': segments_serializer.data,
             'addresses': addresses_serializer.data
@@ -185,11 +194,15 @@ def bulk_segments_upload(request):
         for obj in request.data:
             batch = {
                 'route': obj.get("ROUTE"),
-                'segment': obj.get("SEGMENT_CO"),
+                'code': obj.get("SEGMENT_CODE"),
                 'start_lat': json.dumps(obj.get("NORTHINGS")),
                 'start_lng': json.dumps(obj.get("EASTINGS")),
                 'end_lat': json.dumps(obj.get("NORTHINGS2")),
-                'end_lng': json.dumps(obj.get("EASTINGS2"))
+                'end_lng': json.dumps(obj.get("EASTINGS2")),
+                'start_name': obj.get("START_NAME"),
+                'end_name': obj.get("END_NAME"),
+                'name': obj.get("SEGMENT_NAME"),
+                'state': obj.get("STATE"),
             }
             addresses.append(batch)
         
@@ -219,14 +232,16 @@ def bulk_segments_upload(request):
             start_point = Addresses(
                 address = response['origin_addresses'][0],
                 lat = point['start_lat'],
-                lng = point['start_lng']
+                lng = point['start_lng'],
+                name = point['start_name']
             )
             google_addresses.append(start_point)
 
             end_point = Addresses(
                 address = response['destination_addresses'][0],
                 lat = point['end_lat'],
-                lng = point['end_lng']
+                lng = point['end_lng'],
+                name = point['end_name'],
             )
             google_addresses.append(end_point)
 
@@ -262,7 +277,9 @@ def bulk_segments_upload(request):
                 status = '0A5D00' #'Excellent'
 
             segments.append({
-                'segment': point['segment'],
+                'code': point['code'],
+                'name': point['name'],
+                'state': point['state'],
                 'distance': distance,
                 'travel_time': duration,
                 'avg_speed': speed,
@@ -278,8 +295,9 @@ def bulk_segments_upload(request):
     segments_to_save = []
     for segment in segments:
         segments_to_save.append(Segment(
-            segment = segment['segment'],
-            road_name = '',
+            code = segment['code'],
+            name = segment['name'],
+            state = segment['state'],
             distance = segment['distance'],
             travel_time = segment['travel_time'],
             avg_speed = segment['avg_speed'],
@@ -289,6 +307,5 @@ def bulk_segments_upload(request):
             # route = Route.objects.get(route=addresses[i]['route'])
         ))
         i+=1
-
     Segment.objects.bulk_create(segments_to_save, ignore_conflicts=True)
     return Response({'response': batch}, status=HTTP_200_OK)
