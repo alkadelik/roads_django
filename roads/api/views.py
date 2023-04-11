@@ -52,7 +52,7 @@ def roads_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'POST'])
-def routes_list(request):
+def routes_list_mod(request):
     if request.method == 'GET':
         routes = Route.objects.all().order_by('pk')
         serializer = RouteSerializer(routes, many=True)
@@ -83,6 +83,8 @@ def roads_detail(request, pk):
 @api_view(['GET', 'POST'])
 def road_status(request):
     if request.method == 'POST':
+        Route.objects.get_or_create(route=request.obj.get("ROUTE"))
+
         try:
             start_lat = request.data.get("start_lat")
             start_lng = request.data.get("start_lng")
@@ -112,49 +114,79 @@ def road_status(request):
     speed = round((float(distance) / duration2), 0)
 
     # I tried to use get_or_create for this but running into unique constraint errors
-    try:
-        start_point = Addresses.objects.get(address = origin_address)
-    except:
-        start_point = Addresses.objects.create(
-            address = origin_address,
-            lat = start_lat,
-            lng = start_lng
-        )
+    start_point = Addresses.objects.get_or_create(
+        address = response['origin_addresses'][0],
+        lat = start_lat,
+        lng = start_lng,
+        name = request.data.get('start_name')
+    )
 
-    try:
-        end_point = Addresses.objects.get(address = destination_address)
-    except:
-        end_point = Addresses.objects.create(
-            address = destination_address,
-            lat = start_lat,
-            lng = start_lng
-        )
 
-    if speed < 50: # ~30mph
-        status = 1 #'bad' 
+    end_point = Addresses.objects.get_or_create(
+        address = response['destination_addresses'][0],
+        lat = end_lat,
+        lng = end_lng,
+        name = request.data.get('end_name')
+    )
+    # try:
+    #     start_point = Addresses.objects.get(address = origin_address)
+    # except:
+    #     start_point = Addresses.objects.create(
+    #         address = origin_address,
+    #         lat = start_lat,
+    #         lng = start_lng
+    #     )
+
+    # try:
+    #     end_point = Addresses.objects.get(address = destination_address)
+    # except:
+    #     end_point = Addresses.objects.create(
+    #         address = destination_address,
+    #         lat = start_lat,
+    #         lng = start_lng
+    #     )
+
+    distance = response['rows'][0]['elements'][0]['distance']['text'][:-2]
+    try:
+        duration = response['rows'][0]['elements'][0]['duration']['text'][:-4]
+        duration2 = round((float(duration) / 60), 2) # converted from mins to hrs - used for calculating speed
+    except Exception as e: # ValueError: could not convert string to float:
+        duration = response['rows'][0]['elements'][0]['duration']['text']
+        split = duration.split()
+        
+        if len(split) < 3: # exactly single digit hour with no minutes e.g. 2 hours
+            duration = int(split[0]) * 60
+        else: # hour and minutes e.g. 2 hours 5 mins
+            duration = (int(split[0]) * 60) + int(split[2])
+    
+    duration2 = round((float(duration) / 60), 2)
+    speed = round((float(distance) / duration2), 0)
+
+    if speed < 50: # ~40mph
+        status = 'FF0000' # bad
     elif speed < 65: # ~40mph
-        status = 2 #'poor'
+        status = 'FF4081' # bad
     elif speed < 80: # ~50mph
-        status = 3 #'ok'
+        status = 'FF8000' #'poor'
     elif speed < 95: # ~60mph
-        status = 4 #'good'
+        status = 'FFFF00' #'ok'
     elif speed < 110: # ~70mph
-        status = 5 #'very good'
-    elif speed < 125: # ~80mph
-        status = 5 #'Excellent'
+        status = '80FF00' #'good'
+    else: # ~80mph
+        status = '0A5D00' #'Excellent'
   
     # - if not in db, add to db
     road, created = Segment.objects.get_or_create(
-        # route = 
-        # segment = 
-        start_point = start_point,
-        end_point = end_point,
-        road_name = '',
-        distance = distance,
-        travel_time = duration,
-        avg_speed = speed,
-        # direction
-        status = status
+        code = request.data.get("SEGMENT_CODE"),
+        name = request.data.get("SEGMENT_NAME"),
+        state = request.data.get("STATE"),
+        distance = segment['distance'],
+        travel_time = segment['travel_time'],
+        avg_speed = segment['avg_speed'],
+        status = segment['status'],
+        start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
+        end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
+        route = Route.objects.get(route=addresses[i]['route'])
     )
 
     # route = models.CharField(max_length=10, default='A00')
@@ -180,14 +212,9 @@ def road_status(request):
     #     return Response({'data': response}, status=HTTP_200_OK)
     return Response({'data': response}, status=HTTP_200_OK)
 
-@api_view(['GET', 'POST'])
-def bulk_segments_upload(request):
-    if request.method == 'POST':
-        routes = []
-        for obj in request.data:
-            routes.append(Route(route=obj.get("ROUTE")))
 
-        Route.objects.bulk_create(routes, ignore_conflicts=True)
+    if request.method == 'POST':
+        
 
         # 1. Save segments
         addresses = []
@@ -208,6 +235,65 @@ def bulk_segments_upload(request):
         
         # except:
         #     return Response({'error': 'Could not create addresses'}, status=HTTP_200_OK)
+            
+
+
+            if speed < 50: # ~40mph
+                status = 'FF0000' # bad
+            elif speed < 65: # ~40mph
+                status = 'FF4081' # bad
+            elif speed < 80: # ~50mph
+                status = 'FF8000' #'poor'
+            elif speed < 95: # ~60mph
+                status = 'FFFF00' #'ok'
+            elif speed < 110: # ~70mph
+                status = '80FF00' #'good'
+            else: # ~80mph
+                status = '0A5D00' #'Excellent'
+
+        # except:
+            # return Response({'error': 'Could not fetch details from google'}, status=HTTP_200_OK)
+
+ 
+    return Response({'response': batch}, status=HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+def bulk_segments_upload(request):
+    if request.method == 'POST':
+        routes = []
+        for obj in request.data:
+            routes.append(Route(route=obj.get("ROUTE")))
+
+        Route.objects.bulk_create(routes, ignore_conflicts=True)
+
+        # 1. Save segments
+        addresses = []
+        new_segments = []
+        for obj in request.data:
+            batch = {
+                # 'route': obj.get("ROUTE"),
+                'code': obj.get("SEGMENT_CODE"),
+                'start_lat': json.dumps(obj.get("NORTHINGS")),
+                'start_lng': json.dumps(obj.get("EASTINGS")),
+                'end_lat': json.dumps(obj.get("NORTHINGS2")),
+                'end_lng': json.dumps(obj.get("EASTINGS2")),
+                'start_name': obj.get("START_NAME"),
+                'end_name': obj.get("END_NAME"),
+                # 'name': obj.get("SEGMENT_NAME"),
+                # 'state': obj.get("STATE"),
+            }
+            addresses.append(batch)
+        
+        # except:
+        #     return Response({'error': 'Could not create addresses'}, status=HTTP_200_OK)
+
+            new_segments.append(Segment(
+                code = obj.get("SEGMENT_CODE"),
+                name = obj.get("SEGMENT_NAME"),
+                state = obj.get("STATE"),
+                route = Route.objects.get(route=obj.get("ROUTE"))
+            ))
+        created_segments = Segment.objects.bulk_create(new_segments, ignore_conflicts=True)
 
     google_addresses = []
     segments = []
@@ -260,7 +346,7 @@ def bulk_segments_upload(request):
                     duration = (int(split[0]) * 60) + int(split[2])
          
             duration2 = round((float(duration) / 60), 2)
-            speed = round((float(distance) / duration2), 0)
+            speed = round((float(distance) / duration2), 1)
 
 
             if speed < 50: # ~40mph
@@ -278,8 +364,6 @@ def bulk_segments_upload(request):
 
             segments.append({
                 'code': point['code'],
-                'name': point['name'],
-                'state': point['state'],
                 'distance': distance,
                 'travel_time': duration,
                 'avg_speed': speed,
@@ -292,21 +376,17 @@ def bulk_segments_upload(request):
     Addresses.objects.bulk_create(google_addresses, ignore_conflicts=True)
 
     i = 0
-    segments_to_save = []
+    segments_to_update = []
     for segment in segments:
-        print(addresses[i]['route'])
-        segments_to_save.append(Segment(
-            code = segment['code'],
-            name = segment['name'],
-            state = segment['state'],
-            distance = segment['distance'],
-            travel_time = segment['travel_time'],
-            avg_speed = segment['avg_speed'],
-            status = segment['status'],
-            start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
-            end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
-            route = Route.objects.get(route=addresses[i]['route'])
-        ))
+        seg = Segment.objects.filter(code=segment['code']).first()
+        seg.distance = segment['distance']
+        seg.travel_time = segment['travel_time']
+        seg.avg_speed = segment['avg_speed']
+        seg.status = segment['status']
+        seg.start_point = Addresses.objects.get(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])
+        seg.end_point = Addresses.objects.get(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng'])
+        segments_to_update.append(seg)
         i+=1
-    Segment.objects.bulk_create(segments_to_save, ignore_conflicts=True)
+
+    Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point',])
     return Response({'response': batch}, status=HTTP_200_OK)
