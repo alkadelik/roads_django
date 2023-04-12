@@ -283,17 +283,23 @@ def bulk_segments_upload(request):
                 # 'state': obj.get("STATE"),
             }
             addresses.append(batch)
-        
-        # except:
-        #     return Response({'error': 'Could not create addresses'}, status=HTTP_200_OK)
 
-            new_segments.append(Segment(
-                code = obj.get("SEGMENT_CODE"),
-                name = obj.get("SEGMENT_NAME"),
-                state = obj.get("STATE"),
-                route = Route.objects.get(route=obj.get("ROUTE"))
-            ))
-        created_segments = Segment.objects.bulk_create(new_segments, ignore_conflicts=True)
+            if json.dumps(obj.get("SEGMENT_NAME")) != 'null' and json.dumps(obj.get("STATE")) != 'null':
+                new_segments.append(Segment(
+                    code = obj.get("SEGMENT_CODE"),
+                    name = obj.get("SEGMENT_NAME"),
+                    state = obj.get("STATE"),
+                    route = Route.objects.get(route=obj.get("ROUTE"))
+                ))
+            else:
+                new_segments.append(Segment(
+                    code = obj.get("SEGMENT_CODE"),
+                    name = 'NO NAME',
+                    state = 'NO STATE',
+                    route = Route.objects.get(route=obj.get("ROUTE"))
+                ))
+
+        Segment.objects.bulk_create(new_segments, ignore_conflicts=True)
 
     google_addresses = []
     segments = []
