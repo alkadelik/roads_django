@@ -332,11 +332,15 @@ def bulk_segments_upload(request):
             google_addresses.append(end_point)
 
             # 4. Create segments with distance, speed, and time of travel
-            distance = response['rows'][0]['elements'][0]['distance']['text'][:-2]
+            try:
+                distance = response['rows'][0]['elements'][0]['distance']['text'][:-2]
+            except KeyError: # no response from Google
+                distance = 0.0
+
             try:
                 duration = response['rows'][0]['elements'][0]['duration']['text'][:-4]
                 duration2 = round((float(duration) / 60), 2) # converted from mins to hrs - used for calculating speed
-            except Exception as e: # ValueError: could not convert string to float:
+            except ValueError: # could not convert string to float:
                 duration = response['rows'][0]['elements'][0]['duration']['text']
                 split = duration.split()
                 
@@ -344,23 +348,30 @@ def bulk_segments_upload(request):
                     duration = int(split[0]) * 60
                 else: # hour and minutes e.g. 2 hours 5 mins
                     duration = (int(split[0]) * 60) + int(split[2])
+            except KeyError: # no response from Google
+                duration = 0.0
          
-            duration2 = round((float(duration) / 60), 2)
-            speed = round((float(distance) / duration2), 1)
+            try:
+                duration2 = round((float(duration) / 60), 2)
+                speed = round((float(distance) / duration2), 1)
+            except:
+                speed = 0.0
 
 
-            if speed < 50: # ~40mph
+            if speed < 1:
+                status = '666699' # no respoonse
+            elif speed < 50: # ~40mph
                 status = 'FF0000' # bad
             elif speed < 65: # ~40mph
-                status = 'FF4081' # bad
+                status = 'FF5050' # bad
             elif speed < 80: # ~50mph
-                status = 'FF8000' #'poor'
+                status = 'FF9966' #'poor'
             elif speed < 95: # ~60mph
-                status = 'FFFF00' #'ok'
+                status = '00CC00' #'ok'
             elif speed < 110: # ~70mph
-                status = '80FF00' #'good'
+                status = '339933' #'good'
             else: # ~80mph
-                status = '0A5D00' #'Excellent'
+                status = '006600' #'Excellent'
 
             segments.append({
                 'code': point['code'],
@@ -369,7 +380,6 @@ def bulk_segments_upload(request):
                 'avg_speed': speed,
                 'status': status,
             })
-
         # except:
             # return Response({'error': 'Could not fetch details from google'}, status=HTTP_200_OK)
 
@@ -383,9 +393,10 @@ def bulk_segments_upload(request):
         seg.travel_time = segment['travel_time']
         seg.avg_speed = segment['avg_speed']
         seg.status = segment['status']
-        seg.start_point = Addresses.objects.get(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])
-        seg.end_point = Addresses.objects.get(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng'])
+        # seg.start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1]
+        # seg.end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first()
         segments_to_update.append(seg)
+        # seg.save()
         i+=1
 
     Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point',])
