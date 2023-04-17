@@ -1,7 +1,14 @@
 from django.db import models
 
+class Category(models.Model):
+    category = models.CharField(max_length=1, unique=True)
+
+    def __str__(self):
+        return self.category
+
 class Route(models.Model):
     route = models.CharField(max_length=10, unique=True)
+    category = models.ForeignKey(Category, db_column='category', on_delete=models.PROTECT, default=1)
 
     def __str__(self):
         return self.route

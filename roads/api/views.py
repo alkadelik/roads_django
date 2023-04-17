@@ -21,13 +21,16 @@ from roads.models import Segment, Addresses, Route
 from roads.api.serializers import SegmentSerializer, AddressesSerializer, RouteSerializer
 
 @api_view(['GET', 'POST'])
-def roads_list(request):
+def load_segments(request):
     if request.method == 'GET':
-        segments = Segment.objects.all().order_by('route')
+        segments = Segment.objects.all().order_by('state')
         segments_serializer = SegmentSerializer(segments, many=True)
 
         addresses = Addresses.objects.all()
         addresses_serializer = AddressesSerializer(addresses, many=True)
+        
+        routes = Route.objects.all()
+        routes_serializer = RouteSerializer(routes, many=True)
 
         try:
             for segment in segments_serializer.data:
@@ -40,7 +43,8 @@ def roads_list(request):
 
         context = {
             'segments': segments_serializer.data,
-            'addresses': addresses_serializer.data
+            'addresses': addresses_serializer.data,
+            'routes': routes_serializer.data
         }
         return Response(context)
 
@@ -319,6 +323,7 @@ def bulk_segments_upload(request):
             header = {}  
 
             response = requests.get(url, data=payload, headers=header).json()
+            print(response)
 
             # 3. Save addresses2
             start_point = Addresses(
@@ -339,45 +344,37 @@ def bulk_segments_upload(request):
 
             # 4. Create segments with distance, speed, and time of travel
             try:
-                distance = response['rows'][0]['elements'][0]['distance']['text'][:-2]
+                distance = round(response['rows'][0]['elements'][0]['distance']['value']/1000, 1)
             except KeyError: # no response from Google
                 distance = 0.0
 
             try:
-                duration = response['rows'][0]['elements'][0]['duration']['text'][:-4]
-                duration2 = round((float(duration) / 60), 2) # converted from mins to hrs - used for calculating speed
-            except ValueError: # could not convert string to float:
-                duration = response['rows'][0]['elements'][0]['duration']['text']
-                split = duration.split()
-                
-                if len(split) < 3: # exactly single digit hour with no minutes e.g. 2 hours
-                    duration = int(split[0]) * 60
-                else: # hour and minutes e.g. 2 hours 5 mins
-                    duration = (int(split[0]) * 60) + int(split[2])
+                duration = round(response['rows'][0]['elements'][0]['duration']['value']/60, 1)
             except KeyError: # no response from Google
                 duration = 0.0
          
             try:
-                duration2 = round((float(duration) / 60), 2)
-                speed = round((float(distance) / duration2), 1)
+                speed = round((distance / (duration / 60)), 1)
             except:
                 speed = 0.0
 
 
             if speed < 1:
-                status = '666699' # no respoonse
-            elif speed < 50: # ~40mph
-                status = 'FF0000' # bad
-            elif speed < 65: # ~40mph
+                status = '666699' # no response from Google
+            elif speed < 40:
+                status = 'FF0000' # werser
+            elif speed < 50:
                 status = 'FF5050' # bad
-            elif speed < 80: # ~50mph
-                status = 'FF9966' #'poor'
-            elif speed < 95: # ~60mph
+            elif speed < 60: #
+                status = 'FF9966' # poor
+            elif speed < 70: #
+                status = 'FFFFCC' # manage
+            elif speed < 80:
                 status = '00CC00' #'ok'
-            elif speed < 110: # ~70mph
+            elif speed < 90:
                 status = '339933' #'good'
-            else: # ~80mph
-                status = '006600' #'Excellent'
+            else:
+                status = '006600' #'better'
 
             segments.append({
                 'code': point['code'],
@@ -407,3 +404,29 @@ def bulk_segments_upload(request):
 
     Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point',])
     return Response({'response': batch}, status=HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+def update_address(request):
+    if request.method == 'POST':
+        addresses = []
+        for obj in request.data:
+            code = obj.get("SEGMENT_CODE")
+            start_lat = obj.get("NORTHINGS")
+            start_lng = obj.get("EASTINGS")
+            end_lat = obj.get("NORTHINGS2")
+            end_lng = obj.get("EASTINGS2")
+            # start_lat = json.dumps(obj.get("NORTHINGS"))
+            # start_lng = json.dumps(obj.get("EASTINGS"))
+            # end_lat = json.dumps(obj.get("NORTHINGS2"))
+            # end_lng = json.dumps(obj.get("EASTINGS2"))
+
+            for obj in request.data:
+                # try:
+                    segment = Segment.objects.get(code=code)
+                    segment.start_point = Addresses.objects.filter(lat=start_lat, lng=start_lng)[:1]
+                    segment.end_point = Addresses.objects.filter(lat=end_lat, lng=end_lng).first()
+                    addresses.append(segment)
+                # except:
+
+        Segment.objects.bulk_update(addresses, ['start_point', 'end_point'])
+    return Response({'response': 'addresses updated'}, status=HTTP_200_OK)
