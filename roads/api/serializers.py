@@ -1,4 +1,4 @@
-from roads.models import Segment, Addresses, Route
+from roads.models import Segment, Address, Route
 from rest_framework import serializers
 
 class SegmentSerializer(serializers.ModelSerializer):
@@ -9,9 +9,9 @@ class SegmentSerializer(serializers.ModelSerializer):
         model = Segment
         fields = '__all__'
 
-class AddressesSerializer(serializers.ModelSerializer):
+class AddressSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Addresses
+        model = Address
         fields = '__all__'
 
 class RouteSerializer(serializers.ModelSerializer):

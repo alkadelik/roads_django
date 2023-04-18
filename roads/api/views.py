@@ -1,3 +1,6 @@
+# django imports
+from django.db import IntegrityError
+
 # DRF imports
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -17,8 +20,8 @@ import requests # requests installed by pip
 from decouple import config
 
 # app imports
-from roads.models import Segment, Addresses, Route
-from roads.api.serializers import SegmentSerializer, AddressesSerializer, RouteSerializer
+from roads.models import Segment, Address, Route
+from roads.api.serializers import SegmentSerializer, AddressSerializer, RouteSerializer
 
 @api_view(['GET', 'POST'])
 def load_segments(request):
@@ -26,8 +29,8 @@ def load_segments(request):
         segments = Segment.objects.all().order_by('state')
         segments_serializer = SegmentSerializer(segments, many=True)
 
-        addresses = Addresses.objects.all()
-        addresses_serializer = AddressesSerializer(addresses, many=True)
+        addresses = Address.objects.all()
+        addresses_serializer = AddressSerializer(addresses, many=True)
         
         routes = Route.objects.all()
         routes_serializer = RouteSerializer(routes, many=True)
@@ -118,7 +121,7 @@ def road_status(request):
     speed = round((float(distance) / duration2), 0)
 
     # I tried to use get_or_create for this but running into unique constraint errors
-    start_point = Addresses.objects.get_or_create(
+    start_point = Address.objects.get_or_create(
         address = response['origin_addresses'][0],
         lat = start_lat,
         lng = start_lng,
@@ -126,14 +129,14 @@ def road_status(request):
     )
 
 
-    end_point = Addresses.objects.get_or_create(
+    end_point = Address.objects.get_or_create(
         address = response['destination_addresses'][0],
         lat = end_lat,
         lng = end_lng,
         name = request.data.get('end_name')
     )
     # try:
-    #     start_point = Addresses.objects.get(address = origin_address)
+    #     start_point = Address.objects.get(address = origin_address)
     # except:
     #     start_point = Addresses.objects.create(
     #         address = origin_address,
@@ -142,9 +145,9 @@ def road_status(request):
     #     )
 
     # try:
-    #     end_point = Addresses.objects.get(address = destination_address)
+    #     end_point = Address.objects.get(address = destination_address)
     # except:
-    #     end_point = Addresses.objects.create(
+    #     end_point = Address.objects.create(
     #         address = destination_address,
     #         lat = start_lat,
     #         lng = start_lng
@@ -188,8 +191,8 @@ def road_status(request):
         travel_time = segment['travel_time'],
         avg_speed = segment['avg_speed'],
         status = segment['status'],
-        start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
-        end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
+        start_point = Address.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
+        end_point = Address.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
         route = Route.objects.get(route=addresses[i]['route'])
     )
 
@@ -323,18 +326,17 @@ def bulk_segments_upload(request):
             header = {}  
 
             response = requests.get(url, data=payload, headers=header).json()
-            print(response)
 
             # 3. Save addresses2
-            start_point = Addresses(
+            start_point = Address(
                 address = response['origin_addresses'][0],
                 lat = point['start_lat'],
                 lng = point['start_lng'],
-                name = point['start_name']
+                name = point['start_name'],
             )
             google_addresses.append(start_point)
 
-            end_point = Addresses(
+            end_point = Address(
                 address = response['destination_addresses'][0],
                 lat = point['end_lat'],
                 lng = point['end_lng'],
@@ -382,11 +384,13 @@ def bulk_segments_upload(request):
                 'travel_time': duration,
                 'avg_speed': speed,
                 'status': status,
+                'start': response['origin_addresses'][0],
+                'end': response['destination_addresses'][0]
             })
         # except:
             # return Response({'error': 'Could not fetch details from google'}, status=HTTP_200_OK)
 
-    Addresses.objects.bulk_create(google_addresses, ignore_conflicts=True)
+    Address.objects.bulk_create(google_addresses, ignore_conflicts=True)
 
     i = 0
     segments_to_update = []
@@ -396,13 +400,13 @@ def bulk_segments_upload(request):
         seg.travel_time = segment['travel_time']
         seg.avg_speed = segment['avg_speed']
         seg.status = segment['status']
-        # seg.start_point = Addresses.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1]
-        # seg.end_point = Addresses.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first()
+        seg.start_point = Address.objects.get(address=segment['start'])
+        seg.end_point = Address.objects.filter(address=segment['end']).first()
         segments_to_update.append(seg)
         # seg.save()
-        i+=1
+        i+=2
 
-    Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point',])
+    Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point'])
     return Response({'response': batch}, status=HTTP_200_OK)
 
 @api_view(['GET', 'POST'])
@@ -423,10 +427,11 @@ def update_address(request):
             for obj in request.data:
                 # try:
                     segment = Segment.objects.get(code=code)
-                    segment.start_point = Addresses.objects.filter(lat=start_lat, lng=start_lng)[:1]
-                    segment.end_point = Addresses.objects.filter(lat=end_lat, lng=end_lng).first()
+                    segment.start_point = Address.objects.filter(lat=start_lat, lng=start_lng)[:1]
+                    segment.end_point = Address.objects.filter(lat=end_lat, lng=end_lng).first()
                     addresses.append(segment)
+                    print(segment.start_point)
                 # except:
 
-        Segment.objects.bulk_update(addresses, ['start_point', 'end_point'])
+        # Segment.objects.bulk_update(addresses, ['start_point', 'end_point'])
     return Response({'response': 'addresses updated'}, status=HTTP_200_OK)

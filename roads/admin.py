@@ -1,11 +1,11 @@
 from django.contrib import admin
-from .models import Segment, Route, Addresses
+from .models import Segment, Route, Address
 
 admin.site.register(Segment)
 admin.site.register(Route)
 
-class AddressesAdmin(admin.ModelAdmin):
+class AddressAdmin(admin.ModelAdmin):
     readonly_fields = ('id',)
-admin.site.register(Addresses, AddressesAdmin)
+admin.site.register(Address, AddressAdmin)
 
 
