@@ -24,8 +24,8 @@ class Address(models.Model):
         return self.name
 
 class Segment(models.Model):
-    route = models.ForeignKey(Route, db_column='route', on_delete=models.PROTECT, default=958)
-    name = models.CharField(max_length=30, blank=True)
+    route = models.ForeignKey(Route, db_column='route', on_delete=models.PROTECT, default=1)
+    name = models.CharField(max_length=64, blank=True)
     state = models.CharField(max_length=30, blank=True)
     code = models.CharField(max_length=10, unique=True)
     start_point = models.ForeignKey(Address, related_name='start_point', on_delete=models.PROTECT, default=1) # id 1330 is No address

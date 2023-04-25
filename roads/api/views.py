@@ -37,9 +37,17 @@ def load_segments(request):
 
         try:
             for segment in segments_serializer.data:
+                # it is important that the northings and eastings group is done first. After that,
+                # the definition of segment['start_point'] changes and affects the code 
+                segment['northings'] = addresses.filter(pk=segment['start_point']).values()[0]['lng']
+                segment['eastings'] = addresses.filter(pk=segment['start_point']).values()[0]['lat']
+                segment['northings2'] = addresses.filter(pk=segment['end_point']).values()[0]['lng']
+                segment['eastings2'] = addresses.filter(pk=segment['end_point']).values()[0]['lat']
+
                 segment['start_point'] = addresses.filter(pk=segment['start_point']).values()[0]['name']
                 segment['end_point'] = addresses.filter(pk=segment['end_point']).values()[0]['name']
                 segment['route'] = Route.objects.filter(pk=segment['route']).values()[0]['route']
+            
         except:
             print('error occurreds getting route or start_point')
             pass
@@ -191,7 +199,7 @@ def road_status(request):
         travel_time = segment['travel_time'],
         avg_speed = segment['avg_speed'],
         status = segment['status'],
-        start_point = Address.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(),
+        start_point = Address.objects.filter(lat=addresses[i]['start_lat'], lng=addresses[i]['start_lng'])[:1].get(), # what is this .get() at the end?
         end_point = Address.objects.filter(lat=addresses[i]['end_lat'], lng=addresses[i]['end_lng']).first(),
         route = Route.objects.get(route=addresses[i]['route'])
     )
@@ -407,7 +415,7 @@ def bulk_segments_upload(request):
         i+=2
 
     Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point'])
-    return Response({'response': batch}, status=HTTP_200_OK)
+    return Response({'response': request.data}, status=HTTP_200_OK)
 
 @api_view(['GET', 'POST'])
 def update_address(request):
@@ -435,3 +443,51 @@ def update_address(request):
 
         # Segment.objects.bulk_update(addresses, ['start_point', 'end_point'])
     return Response({'response': 'addresses updated'}, status=HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+def update_code(request):
+    segments = Segment.objects.all()
+    serializer = SegmentSerializer(segments, many=True)
+        
+    if request.method == 'POST':
+        segments = []
+        for obj in request.data:
+            code = obj.get("SEGMENT_CODE")
+            segment = Segment.objects.filter(code=code).first()
+            segment.code = obj.get("NEW_CODE")
+            segments.append(segment)
+
+        Segment.objects.bulk_update(segments, ['code'])
+    return Response({'response': serializer.data}, status=HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+def update_name(request):
+    segments = Segment.objects.all()
+    serializer = SegmentSerializer(segments, many=True)
+        
+    if request.method == 'POST':
+        segments = []
+        for obj in request.data:
+            code = obj.get("SEGMENT_CODE")
+            segment = Segment.objects.filter(code=code).first()
+            segment.name = obj.get("NEW_SEGMENT_NAME")
+            segments.append(segment)
+
+        Segment.objects.bulk_update(segments, ['name'])
+    return Response({'response': serializer.data}, status=HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+def update_state(request):
+    segments = Segment.objects.all()
+    serializer = SegmentSerializer(segments, many=True)
+        
+    if request.method == 'POST':
+        segments = []
+        for obj in request.data:
+            code = obj.get("SEGMENT_CODE")
+            segment = Segment.objects.filter(code=code).first()
+            segment.state = obj.get("NEW_STATE")
+            segments.append(segment)
+
+        Segment.objects.bulk_update(segments, ['state'])
+    return Response({'response': serializer.data}, status=HTTP_200_OK)
