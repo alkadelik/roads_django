@@ -16,3 +16,33 @@ route = Route.objects.get(route=json.dumps(obj.get("ROUTE")))
   File "/Users/alkadelik/Documents/dev/leyyow/djangoEnv/lib/python3.10/site-packages/django/db/models/query.py", line 496, in get
     raise self.model.DoesNotExist(
 roads.models.Route.DoesNotExist: Route matching query does not exist.
+
+
+
+Map
+upload
+Edit
+Search
+Classification
+
+
+Accurate search A1 v A123
+Rounding issues
+Autocomplete
+Self upload
+Cron ()
+Edit
+Map
+Segments sharing a state
+Inserting segment
+Proper on-screen feedback and messaging (so you know when something is happening, etc)
+Code refactoring (efficiency and refactoring)
+Login so not anyone can upload / corrupt the data
+The integrity of raw data. Sometimes even, google not finding the road
+
+show map of routes against Nigeria - so you understand the path that it is taking
+
+
+Option 1: CPMS website
+
+Documentation / FAQs
