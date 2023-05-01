@@ -39,6 +39,7 @@ Proper on-screen feedback and messaging (so you know when something is happening
 Code refactoring (efficiency and refactoring)
 Login so not anyone can upload / corrupt the data
 The integrity of raw data. Sometimes even, google not finding the road
+The order
 
 show map of routes against Nigeria - so you understand the path that it is taking
 

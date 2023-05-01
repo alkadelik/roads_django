@@ -314,7 +314,7 @@ def bulk_segments_upload(request):
                 distance = round(response['rows'][0]['elements'][0]['distance']['value']/1000, 1)
             except KeyError: # no response from Google
                 distance = 0.0
-
+            
             try:
                 duration = round(response['rows'][0]['elements'][0]['duration']['value']/60, 1)
             except KeyError: # no response from Google
@@ -359,6 +359,7 @@ def bulk_segments_upload(request):
 
     segments_to_update = []
     for segment in segments:
+        print(segment)
         seg = Segment.objects.filter(code=segment['code']).first()
         seg.distance = segment['distance']
         seg.travel_time = segment['travel_time']
