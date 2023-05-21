@@ -361,6 +361,18 @@ def bulk_segments_upload(request):
     for segment in segments:
         print(segment)
         seg = Segment.objects.filter(code=segment['code']).first()
+
+        try:
+            last_two = int(segment['code'][-2:]) # checking if this breaks
+            seg.index = segment['code'][-2:]
+        except:
+            seg.index = segment['code'][-1:]
+        # if last_two.isalpha():
+        #     print(seg.index)
+        # else:
+        #     seg.index = segment['code'][-1:]
+        #     print(seg.index)
+        
         seg.distance = segment['distance']
         seg.travel_time = segment['travel_time']
         seg.avg_speed = segment['avg_speed']
@@ -370,7 +382,7 @@ def bulk_segments_upload(request):
         segments_to_update.append(seg)
         # seg.save()
 
-    Segment.objects.bulk_update(segments_to_update, ['distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point'])
+    Segment.objects.bulk_update(segments_to_update, ['index', 'distance', 'travel_time', 'avg_speed', 'status', 'start_point', 'end_point'])
     return Response({'response': request.data}, status=HTTP_200_OK)
 
 @api_view(['GET', 'POST'])
@@ -450,16 +462,20 @@ def update_coordinates(request):
         # 1. get relevant data
         addresses = []
         for obj in request.data:
+            print(obj)
             points = {
                 'route': obj.get("ROUTE"),
                 'code': obj.get("SEGMENT_CODE"),
+                'start_name': obj.get("START_NAME"),
                 'start_lat': json.dumps(obj.get("NORTHINGS")),
                 'start_lng': json.dumps(obj.get("EASTINGS")),
+                'end_name': obj.get("END_NAME"),
                 'end_lat': json.dumps(obj.get("NORTHINGS2")),
                 'end_lng': json.dumps(obj.get("EASTINGS2")),
             }
             addresses.append(points)
 
+    print("address is ", addresses)
     google_addresses = []
     segments = []
     for point in addresses:

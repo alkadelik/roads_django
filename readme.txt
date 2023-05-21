@@ -19,14 +19,16 @@ roads.models.Route.DoesNotExist: Route matching query does not exist.
 
 
 
-Map
+MAP
+Accurate search A1 v A123
+Arrange alphabetically
 upload
 Edit
 Search
 Classification
 
-
-Accurate search A1 v A123
+Pagination
+Filter segments by quality
 Rounding issues
 Autocomplete
 Self upload
@@ -47,3 +49,5 @@ show map of routes against Nigeria - so you understand the path that it is takin
 Option 1: CPMS website
 
 Documentation / FAQs
+
+If there's an error uploading the segment, save it somewhere

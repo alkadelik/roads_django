@@ -2,6 +2,7 @@ from django.db import models
 
 class Route(models.Model):
     route = models.CharField(max_length=10, unique=True)
+    index = models.CharField(max_length=2, blank=True)
 
     def __str__(self):
         return self.route
@@ -18,6 +19,7 @@ class Address(models.Model):
 
 class Segment(models.Model):
     route = models.ForeignKey(Route, db_column='route', on_delete=models.PROTECT, default=1)
+    index = models.CharField(max_length=2, blank=True)
     name = models.CharField(max_length=64, blank=True)
     state = models.CharField(max_length=30, blank=True)
     code = models.CharField(max_length=10, unique=True)
